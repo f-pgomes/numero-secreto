@@ -1,0 +1,57 @@
+import requests
+import pygrib
+import os
+from datetime import datetime
+import cfgrib
+import xarray as xr
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib.ticker as mticker
+from cartopy.mpl.gridliner import LATITUDE_FORMATTER, LONGITUDE_FORMATTER
+
+run_date = '20240224'
+run_hour = '12'
+
+url = f'https://nomads.ncep.noaa.gov/pub/data/nccf/com/gfs/prod/gfs.{run_date}/{run_hour}/atmos/gfs.t{run_hour}z.pgrb2.0p50.anl'
+response = requests.get(url, allow_redirects=True)
+
+assert response.status_code == 200
+
+with open('gfs.t00z.pgrb2.0p25.anl', 'wb') as file:
+    file.write(response.content)
+    
+filename = 'gfs.t00z.pgrb2.0p25.anl'
+
+# Se o arquivo não existir ou se existir e não corresponder à data/hora/fnum desejados, faz o download novamente.
+if not os.path.isfile(filename) or (os.path.isfile(filename)):
+    print("Baixando o arquivo...")
+    response = requests.get(url)
+    with open(filename, 'wb') as file:
+        file.write(response.content)
+else:
+    print(f"O arquivo '{filename}' com a data, hora e tempo de previsão desejados já está presente na pasta.")
+
+level1 = {'typeOfLevel': 'meanSea'}
+
+# Abre o arquivo GRIB como um DataSet xarray
+ds = xr.open_dataset(filename, engine='cfgrib', backend_kwargs={'filter_by_keys': level1})
+initial_time = ds['time'].values.astype('datetime64[s]').tolist()
+forecast_time = ds['valid_time'].values.astype('datetime64[s]').tolist()
+
+path = f'U:/arquivos/Python/Saídas do GFS/Análise/'
+
+try:
+    os.makedirs(path)
+except:
+    pass
+
+filename2 = f'{run_date}_{run_hour}_gfs.t00z.pgrb2.0p25.anl'
+
+try:
+    os.rename(filename, filename2)
+except:
+    pass
+
+filename = filename2
